@@ -5,11 +5,11 @@ pool:
   name: AzurePool
  
 variables:
-  resourceGroupName: 'kanikamahajan01'
+  resourceGroupName: 'Ur resource group name'
   aksClusterName: 'my-aks-cluster'
   buildId: $(Build.BuildId)
-  imageName1: 'kanika.azurecr.io/calculator2'
-  imageName2: 'kanika.azurecr.io/app2'
+  imageName1: '(azure repo name).azurecr.io/calculator2'
+  imageName2: '(azure-repo-name).azurecr.io/app2'
   
 stages:
 
