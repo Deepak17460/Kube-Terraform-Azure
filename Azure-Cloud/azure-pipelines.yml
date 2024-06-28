@@ -154,8 +154,8 @@ stages:
       displayName: 'Update Deployment Manifest'
 
     - script: |
-        git config --global user.email "kanika.mahajan01@nagarro.com"
-        git config --global user.name "Kanika Mahajan"
+        git config --global user.email "your email"
+        git config --global user.name "your username"
         git add $(System.DefaultWorkingDirectory)/kubernetes/App1/deploy/deployment.yaml
         # git add $(System.DefaultWorkingDirectory)/kubernetes/App2/deploy/deployment.yaml
         git commit -m "Update deployment with image tag $(buildId)"
