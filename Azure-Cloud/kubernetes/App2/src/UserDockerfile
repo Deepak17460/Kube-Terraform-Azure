@@ -1,0 +1,4 @@
+FROM openjdk:17-jdk-slim
+EXPOSE 8086
+ADD target/UserManagement.war UserManagement.war
+ENTRYPOINT ["java", "-jar", "UserManagement.war"]

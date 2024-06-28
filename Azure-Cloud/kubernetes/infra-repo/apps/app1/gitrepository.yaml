@@ -1,0 +1,12 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: app1
+  namespace: default
+spec:
+  interval: 1m
+  url: https://dev.azure.com/kanikamahajan01/Assignment-4/_git/Major
+  ref:
+    branch: main
+  secretRef:
+    name: flux-git-auth

@@ -1,0 +1,164 @@
+trigger:
+- none
+
+pool:
+  name: AzurePool
+ 
+variables:
+  resourceGroupName: 'kanikamahajan01'
+  aksClusterName: 'my-aks-cluster'
+  buildId: $(Build.BuildId)
+  imageName1: 'kanika.azurecr.io/calculator2'
+  imageName2: 'kanika.azurecr.io/app2'
+  
+stages:
+
+# - stage: Provision
+#   displayName: 'Provision AKS'
+#   jobs:
+#   - job: Terraform_Apply
+#     displayName: 'Provision AKS'
+#     steps:
+
+#     - script: |
+#         az aks show --resource-group $(resourceGroupName) --name $(aksClusterName) > /dev/null 2>&1
+#         exitCode=$?
+#         if [ $exitCode -eq 0 ]; then
+#           echo "AKS cluster exists."
+#         else
+#           echo "AKS cluster does not exist."
+#           exit 0
+#         fi
+#       displayName: 'Check if AKS Cluster Exists'
+#       continueOnError: true
+#       name: CheckAksExists
+    
+#     - script: |
+#         cd $(System.DefaultWorkingDirectory)/terraform
+#         terraform init
+#       displayName: 'Terraform Init and Validate'
+
+#     - script: |
+#         cd $(System.DefaultWorkingDirectory)/terraform
+#         terraform plan -out=tfplan -detailed-exitcode -input=false 
+#         echo "##vso[task.setvariable variable=TerraformPlanExitCode]$?"
+#         echo "Terraform Plan Exit Code: $exitCode"
+#       displayName: 'Terraform Plan'
+#       continueOnError: true
+
+#     - script: |
+#         cd $(System.DefaultWorkingDirectory)/terraform
+#         terraform apply -input=false tfplan
+#       displayName: 'Terraform Apply'
+#       condition: and(succeeded(), eq(variables['TerraformPlanExitCode'], '2'))
+
+#     - script: |
+#         az aks get-credentials --resource-group kanikamahajan01 --name my-aks-cluster --overwrite-existing
+#         kubectl get nodes
+#       displayName: 'List AKS Nodes'
+- stage: BuildandPush
+  jobs:
+  - job: BuildJob
+    steps:
+     
+    - task: SonarQubePrepare@6
+      inputs:
+        SonarQube: 'azure-sonar'
+        scannerMode: 'Other'
+        extraProperties: |
+          # Additional properties that will be passed to the scanner, 
+          # Put one key=value per line, example:
+          # sonar.exclusions=**/*.bin
+          sonar.projectKey=Assignment-4_MajorAssign_bbe789f6-6b0d-49b5-b538-1368aa93b35c
+          sonar.projectName=MajorAssign
+    
+    - task: Maven@4
+      displayName: Build App1
+      inputs:
+        mavenPomFile: 'kubernetes/App1/pom.xml'
+        goals: 'clean package'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: true
+    
+    - task: CopyFiles@2
+      displayName: Copy App1 Artifacts
+      inputs:
+        SourceFolder: '$(system.defaultworkingdirectory)'
+        Contents: '**/Calculator2.war'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+      condition: succeededOrFailed()
+      continueOnError: true
+
+    - task: Docker@2
+      displayName: Build and push Docker Image for App1
+      inputs:
+        containerRegistry: 'docker-acr'
+        repository: 'calculator2'
+        command: 'buildAndPush'
+        Dockerfile: '**/Dockerfile'
+        tags: '$(buildId)'
+        buildContext: 'kubernetes/App1'
+      
+    - task: SonarQubePrepare@6
+      inputs:
+        SonarQube: 'azure-sonar'
+        scannerMode: 'Other'
+        
+    # - task: Maven@4
+    #   displayName: Build App2
+    #   inputs:
+    #     mavenPomFile: 'kubernetes/App2/pom.xml'
+    #     goals: 'clean package'
+    #     publishJUnitResults: true
+    #     testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    #     javaHomeOption: 'JDKVersion'
+    #     mavenVersionOption: 'Default'
+    #     mavenAuthenticateFeed: false
+    #     effectivePomSkip: false
+    #     sonarQubeRunAnalysis: true
+      
+    # - task: CopyFiles@2
+    #   displayName: Copy App2 Artifacts
+    #   inputs:
+    #     SourceFolder: '$(system.defaultworkingdirectory)'
+    #     Contents: '**/UserManagement.war'
+    #     TargetFolder: '$(build.artifactstagingdirectory)'
+    #   condition: succeededOrFailed()
+    #   continueOnError: true
+      
+    # - task: Docker@2
+    #   displayName: Build and push Docker Image for App2
+    #   inputs:
+    #     containerRegistry: 'docker-acr'
+    #     repository: 'app2'
+    #     command: 'buildAndPush'
+    #     Dockerfile: '**/UserDockerfile'
+    #     tags: '$(buildId)'
+    #     buildContext: 'kubernetes/App2'
+ 
+- stage: CommitManifests
+  jobs:
+  - job: PushJob
+    steps:
+    - checkout: self
+      persistCredentials: true
+
+    - script: |
+        sed -i "s|image: $(imageName1):.*|image: $(imageName1):$(buildId)|" $(System.DefaultWorkingDirectory)/kubernetes/App1/deploy/deployment.yaml
+        # sed -i "s|image: $(imageName2):.*|image: $(imageName2):$(buildId)|" $(System.DefaultWorkingDirectory)/kubernetes/App2/deploy/deployment.yaml
+      displayName: 'Update Deployment Manifest'
+
+    - script: |
+        git config --global user.email "kanika.mahajan01@nagarro.com"
+        git config --global user.name "Kanika Mahajan"
+        git add $(System.DefaultWorkingDirectory)/kubernetes/App1/deploy/deployment.yaml
+        # git add $(System.DefaultWorkingDirectory)/kubernetes/App2/deploy/deployment.yaml
+        git commit -m "Update deployment with image tag $(buildId)"
+        
+        git push origin HEAD:main
+      displayName: 'Commit and Push Deployment Manifest'

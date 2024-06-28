@@ -1,0 +1,10 @@
+subscription_id         = ""
+client_id               = ""
+client_secret           = ""
+tenant_id               = ""
+resource_group_name     = ""
+location                = ""
+kubernetes_cluster_name = ""
+kubernetes_version      = ""
+node_count              = 1
+acr_name                = ""

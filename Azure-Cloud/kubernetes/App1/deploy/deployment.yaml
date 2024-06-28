@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-app
+  labels:
+    app: springboot-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: springboot-app
+  template:
+    metadata:
+      labels:
+        app: springboot-app
+    spec:
+      nodeSelector:
+        nodepool: additional
+      containers:
+        - name: springboot-app
+          image: kanika.azurecr.io/calculator2:529
+          ports:
+            - containerPort: 8087
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
